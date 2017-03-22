@@ -9,6 +9,18 @@
 #include <locale.h>
 #include <stdint.h> //для типа int32_t 
 
+//функция для проверки на ошибки
+void CheckForError (int result)
+{
+
+    if (result != 0)
+	{
+		printf("FALL!!! CheckForError result = %d", result);
+		printf("\n");
+		exit(0);
+	}
+}
+
 int main(int args, char **argv)
 {
 	setlocale(LC_ALL, "russian");
@@ -23,36 +35,33 @@ int main(int args, char **argv)
 	SOCKADDR.sin_port = htons(12345);
 	SOCKADDR.sin_addr.s_addr = htonl(INADDR_LOOPBACK); //htonl(INADDR_LOOPBACK); inet_addr("127.0.0.1");
 
-	int resultconnect = connect(SOCKET, (struct sockaddr *)(&SOCKADDR), sizeof(SOCKADDR)); /*присоединились*/
-	if (resultconnect != 0)
-	{
-		printf("FALL!!! connect = %d\n", resultconnect);
-		//DWORD er = WSAGetLastError();
-		//printf("%d",er);
-		//printf("\n");
-	}
-	else
-	{
-		printf("connect = %d\n",resultconnect);
-		printf("Присоединились к серверу!\n");
-	}
+	CheckForError(connect(SOCKET, (struct sockaddr *)(&SOCKADDR), sizeof(SOCKADDR))); /*присоединились*/
+	printf("Присоединились к серверу!\n");
 
-	char Message [] = "WelcomeToHell";
+	const char message[] = "WelcomeToHell"; //Сообщение
+	int32_t sourceLen = strlen(message); //Длина исходного сообщения
 
-	int32_t messageLen = htonl(sizeof(Message)); /*находим длину передаваемого сообщения, htonl переворачивает байты в сетевой порядок*/
-	send(SOCKET, (char *)&messageLen, sizeof(messageLen), NULL);
+	send(SOCKET, (char *)&sourceLen, sizeof(sourceLen), NULL);
+	send(SOCKET, message, sourceLen, NULL);
+	
+	// Принимаем назад
+	int32_t destinationLen;
+	char messageBuffer[1000];
 
-	send(SOCKET, Message, 4, NULL);
-	//printf("Сообщение отправлено! ");
+	if (sizeof(destinationLen) != recv(SOCKET, (char *)&destinationLen, sizeof(destinationLen), NULL))
+		exit(1);
 
-	recv(SOCKET, (char *)&messageLen, sizeof(messageLen), NULL); /*принимаем заголовок известной длинны*/
+	if (destinationLen > sizeof(messageBuffer) - 1)
+		destinationLen = sizeof(messageBuffer) - 1;
 
-	recv(SOCKET, Message, 4, NULL);
+	if (destinationLen != recv(SOCKET, messageBuffer, destinationLen, NULL))
+		exit(1);
+
+	messageBuffer[destinationLen] = 0;
+	printf("Полученная строка: '%s'\n", messageBuffer);
 
 	shutdown(SOCKET, SD_BOTH);
 	closesocket(SOCKET);
-
-	//printf("%s\n", Buffer);
 
 	getchar ();
 
