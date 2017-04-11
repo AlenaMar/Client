@@ -38,7 +38,16 @@ int main(int args, char **argv)
 	CheckForError(connect(SOCKET, (struct sockaddr *)(&SOCKADDR), sizeof(SOCKADDR))); /*присоединились*/
 	printf("Присоединились к серверу!\n");
 
-	const char message[] = "WelcomeToHell"; //Сообщение
+	const char m1[] = "WelcomeToHell"; //Сообщение  const char message[] = "WelcomeToHell";
+	
+	const char *message;
+	char vvod[50];//!!!
+	printf("Введите сообщение: ");//!!!
+	gets(vvod);//!!! scanf("%s", &vvod);
+	//printf("Введенное сообщение - ");
+	//puts(vvod);//!!!
+	message = vvod;//!!!
+	
 	int32_t sourceLen = strlen(message); //Длина исходного сообщения
 
 	send(SOCKET, (char *)&sourceLen, sizeof(sourceLen), NULL);
