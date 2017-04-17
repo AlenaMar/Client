@@ -25,6 +25,20 @@ int main(int args, char **argv)
 {
 	setlocale(LC_ALL, "russian");
 
+
+	//для статической защиты просим ввести ключ
+	char Key1[] = "qwerty";
+	char Key2[20];
+	printf("Введите ключ: ");
+	gets(Key2);
+	int CheckKey = strcmp(Key1, Key2); //возвращает 0, если строки эквивалентны
+	if (CheckKey != 0)
+	{
+		printf("\n Неверный ключ");
+		exit(0);
+	}
+
+
 	WSAData ws;
 	WSAStartup(MAKEWORD(2, 2), &ws);
 
