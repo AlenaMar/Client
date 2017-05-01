@@ -8,6 +8,7 @@
 #include <Ws2tcpip.h> 
 #include <locale.h>
 #include <stdint.h> //для типа int32_t 
+#include <math.h>
 
 //функция для проверки на ошибки
 void CheckForError (int result)
@@ -21,20 +22,46 @@ void CheckForError (int result)
 	}
 }
 
+//выясняет, отлаживается ли вызывающий процесс (динамическая защита)
+void fastcall(int p)
+{
+	bool check = IsDebuggerPresent();
+	if (check) {
+		printf("Есть отладчик...\n");
+		exit(0);
+	}
+	else
+		printf("Нет отладчика...\n");
+}
+
 int main(int args, char **argv)
 {
 	setlocale(LC_ALL, "russian");
 
 
-	//для статической защиты просим ввести ключ
-	char Key1[] = "qwerty";
-	char Key2[20];
-	printf("Введите ключ: ");
-	gets(Key2);
-	int CheckKey = strcmp(Key1, Key2); //возвращает 0, если строки эквивалентны
-	if (CheckKey != 0)
+	//для защиты ключом просим ввести ключ
+	setlocale(LC_ALL, "Russian");
+	float t1 = 1.570796;
+	char Key[20];
+	
+	printf("Введите пароль доступа к беседе: ");
+	gets(Key);
+	
+	int pr = int(Key[0]);
+	for (int i = 1; i < strlen(Key); i++)
 	{
-		printf("\n Неверный ключ");
+		pr = pr*int(Key[i]);
+	}
+	
+	float t = atan(pr);
+	
+	if (abs(t1 - t) < 0.00001)
+	{
+		printf("***Верный ключ***\n\n");
+	}
+	else
+	{
+		printf("Неверный ключ\n");
 		exit(0);
 	}
 
@@ -48,20 +75,38 @@ int main(int args, char **argv)
 	SOCKADDR.sin_family = AF_INET;
 	SOCKADDR.sin_port = htons(12345);
 	SOCKADDR.sin_addr.s_addr = htonl(INADDR_LOOPBACK); //htonl(INADDR_LOOPBACK); inet_addr("127.0.0.1");
+	int iResult;
+	iResult = WSAStartup(MAKEWORD(2, 2), &ws);
+	struct addrinfo *result = NULL,
+		*ptr = NULL,
+		hints;
 
-	CheckForError(connect(SOCKET, (struct sockaddr *)(&SOCKADDR), sizeof(SOCKADDR))); /*присоединились*/
-	printf("Присоединились к серверу!\n");
+	// установка ip/port
+	char iport[] = "";
+	char port[] = "";
+	printf("Введите ip-адрес: ");
+	gets(iport);
+	printf("Введите port : ");
+	gets(port);
+	fastcall(iResult = getaddrinfo(iport, port, &hints, &result));
+	if (iResult != 0) {
+		printf("getaddrinfo failed with error: %d\n", iResult);
+		WSACleanup();
+		return 1;
+	}
+
+	fastcall(connect(SOCKET, (struct sockaddr *)(&SOCKADDR), sizeof(SOCKADDR))); /*присоединились*/
+	printf("\n");
+	printf("   Соединение с сервером установлено!\n");
 
 	const char m1[] = "WelcomeToHell"; //Сообщение  const char message[] = "WelcomeToHell";
 	
-	const char *message;
-	char vvod[50];//!!!
-	printf("Введите сообщение: ");//!!!
-	gets(vvod);//!!! scanf("%s", &vvod);
-	//printf("Введенное сообщение - ");
-	//puts(vvod);//!!!
-	message = vvod;//!!!
-	
+	const char *message;//
+	char vvod[50];//
+	printf("      Введите сообщение: ");//
+	gets(vvod);//
+	message = vvod;//
+
 	int32_t sourceLen = strlen(message); //Длина исходного сообщения
 
 	send(SOCKET, (char *)&sourceLen, sizeof(sourceLen), NULL);
@@ -81,7 +126,7 @@ int main(int args, char **argv)
 		exit(1);
 
 	messageBuffer[destinationLen] = 0;
-	printf("Полученная строка: '%s'\n", messageBuffer);
+	printf("      Полученная строка: '%s'\n", messageBuffer);
 
 	shutdown(SOCKET, SD_BOTH);
 	closesocket(SOCKET);
