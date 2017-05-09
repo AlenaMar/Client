@@ -1,26 +1,41 @@
+#define WIN32_LEAN_AND_MEAN
+
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <stdlib.h>
 #include <stdio.h>
-
-#pragma comment(lib,"Ws2_32.lib")
-
-#include <sys/types.h>
-#include <WinSock2.h>
 #include <iostream>
-#include <Ws2tcpip.h> 
-#include <locale.h>
-#include <stdint.h> //для типа int32_t 
+#include <string>
+#include<cstring>
 #include <math.h>
 
+#pragma comment (lib, "Ws2_32.lib")
+
 //функция для проверки на ошибки
-void CheckForError (int result)
+void CheckForError(int result)
 {
 
-    if (result != 0)
+	if (result != 0)
 	{
 		printf("FALL!!! CheckForError result = %d", result);
 		printf("\n");
 		exit(0);
 	}
 }
+
+void Recieving(SOCKET * Sock)
+{
+	setlocale(LC_ALL, "Russian");
+	char msg[512];
+	for (;; Sleep(75))
+	{
+		int iResult = recv(*Sock, msg, 512, 0);
+		if (iResult > 0)
+			std::cout << msg << std::endl;
+	}
+}
+
 
 //выясняет, отлаживается ли вызывающий процесс (динамическая защита)
 void fastcall(int p)
@@ -34,18 +49,15 @@ void fastcall(int p)
 		printf("Нет отладчика...\n");
 }
 
-int main(int args, char **argv)
+int main()
 {
-	setlocale(LC_ALL, "russian");
-
-
 	//для защиты ключом просим ввести ключ
 	setlocale(LC_ALL, "Russian");
 	float t1 = 1.570796;
 	char Key[20];
 	
 	printf("Введите пароль доступа к беседе: ");
-	gets(Key);
+	std::cin >> Key;
 	
 	int pr = int(Key[0]);
 	for (int i = 1; i < strlen(Key); i++)
@@ -65,73 +77,90 @@ int main(int args, char **argv)
 		exit(0);
 	}
 
-
-	WSAData ws;
-	WSAStartup(MAKEWORD(2, 2), &ws);
-
-	int SOCKET = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-	struct sockaddr_in SOCKADDR;
-	SOCKADDR.sin_family = AF_INET;
-	SOCKADDR.sin_port = htons(12345);
-	SOCKADDR.sin_addr.s_addr = htonl(INADDR_LOOPBACK); //htonl(INADDR_LOOPBACK); inet_addr("127.0.0.1");
-	int iResult;
-	iResult = WSAStartup(MAKEWORD(2, 2), &ws);
+	WSADATA ws;
+	SOCKET ConnectSocket = INVALID_SOCKET;
 	struct addrinfo *result = NULL,
 		*ptr = NULL,
 		hints;
+	int iResult;
+	// Инициализация сокета
+	fastcall(iResult = WSAStartup(MAKEWORD(2, 2), &ws)); //дин
+	if (iResult != 0) {
+		printf("WSAStartup failed with error: %d\n", iResult);
+		return 1;
+	}
+
+	ZeroMemory(&hints, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
 
 	// установка ip/port
-	char iport[] = "";
-	char port[] = "";
 	printf("Введите ip-адрес: ");
-	gets(iport);
+	std::string iport; std::cin >> iport;
 	printf("Введите port : ");
-	gets(port);
-	fastcall(iResult = getaddrinfo(iport, port, &hints, &result));
+	std::string port; std::cin >> port;
+	fastcall(iResult = getaddrinfo(iport.c_str(), port.c_str(), &hints, &result));//дин
 	if (iResult != 0) {
 		printf("getaddrinfo failed with error: %d\n", iResult);
 		WSACleanup();
 		return 1;
 	}
 
-	fastcall(connect(SOCKET, (struct sockaddr *)(&SOCKADDR), sizeof(SOCKADDR))); /*присоединились*/
-	printf("\n");
-	printf("   Соединение с сервером установлено!\n");
+	// Попытка подключиться
+	for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
 
-	const char m1[] = "WelcomeToHell"; //Сообщение  const char message[] = "WelcomeToHell";
-	
-	const char *message;//
-	char vvod[50];//
-	printf("      Введите сообщение: ");//
-	gets(vvod);//
-	message = vvod;//
+		// Создание сокета для подключения
+		fastcall(ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol)); //дин
+		if (ConnectSocket == INVALID_SOCKET) {
+			printf("socket failed with error: %ld\n", WSAGetLastError());
+			WSACleanup();
+			return 1;
+		}
 
-	int32_t sourceLen = strlen(message); //Длина исходного сообщения
+		// Подключение
+		fastcall(iResult = connect(ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen)); //дин
+		if (iResult == SOCKET_ERROR) {
+			closesocket(ConnectSocket);
+			ConnectSocket = INVALID_SOCKET;
+			continue;
+		}
+		break;
+	}
 
-	send(SOCKET, (char *)&sourceLen, sizeof(sourceLen), NULL);
-	send(SOCKET, message, sourceLen, NULL);
-	
-	// Принимаем назад
-	int32_t destinationLen;
-	char messageBuffer[1000];
+	freeaddrinfo(result);
 
-	if (sizeof(destinationLen) != recv(SOCKET, (char *)&destinationLen, sizeof(destinationLen), NULL))
-		exit(1);
-
-	if (destinationLen > sizeof(messageBuffer) - 1)
-		destinationLen = sizeof(messageBuffer) - 1;
-
-	if (destinationLen != recv(SOCKET, messageBuffer, destinationLen, NULL))
-		exit(1);
-
-	messageBuffer[destinationLen] = 0;
-	printf("      Полученная строка: '%s'\n", messageBuffer);
-
-	shutdown(SOCKET, SD_BOTH);
-	closesocket(SOCKET);
-
-	getchar ();
-
+	if (ConnectSocket == INVALID_SOCKET) {
+		printf("Unable to connect to server!\n");
+		WSACleanup();
+		return 1;
+	}
+	using namespace std;
+	char name[512];
+	cout << "Введите имя: ";
+	cin >> name;
+	strcat_s(name, ": ");
+	cin.get();
+	cout << "\nСоединение с сервером установлено!\n(для отключения введите: EXIT)\n\nДиалог:\n\n";
+	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)Recieving, (LPVOID)(&ConnectSocket), NULL, NULL);
+	//Начало работы для отправки сообщений
+	while (true)
+	{
+		char msg[1048];
+		ZeroMemory(msg, 1024);
+		char box[512];
+		cin.getline(box, 512);
+		strcat_s(msg, name);
+		strcat_s(msg, box);
+		iResult = send(ConnectSocket, msg, 512, 0);
+		if (iResult == SOCKET_ERROR) {
+			printf("send failed with error: %d\n", WSAGetLastError());
+			closesocket(ConnectSocket);
+			WSACleanup();
+			return 1;
+		}
+	}
+	closesocket(ConnectSocket);
+	WSACleanup();
 	return 0;
 }
