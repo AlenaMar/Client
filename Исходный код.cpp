@@ -42,11 +42,11 @@ void fastcall(int p)
 {
 	bool check = IsDebuggerPresent();
 	if (check) {
-		printf("Есть отладчик...\n");
+		//printf("Есть отладчик...\n");
 		exit(0);
 	}
-	else
-		printf("Нет отладчика...\n");
+	//else
+		//printf("Нет отладчика...\n");
 }
 
 int main()
@@ -59,6 +59,12 @@ int main()
 	printf("Введите пароль доступа к беседе: ");
 	std::cin >> Key;
 	
+	if (strlen(Key) > 8)
+	{
+		printf("Неверный ключ\n");
+		exit(0);
+	}
+
 	int pr = int(Key[0]);
 	for (int i = 1; i < strlen(Key); i++)
 	{
