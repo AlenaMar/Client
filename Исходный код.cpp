@@ -42,7 +42,7 @@ void fastcall(int p)
 {
 	bool check = IsDebuggerPresent();
 	if (check) {
-		//printf("Есть отладчик...\n");
+		printf("Есть отладчик...\n");
 		exit(0);
 	}
 	//else
